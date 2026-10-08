@@ -32,8 +32,114 @@
     <li>Kylian Mbappé (Francia)</li>
     <li>Franz Beckenbauer (Alemania)</li>
   </ol>
+  <h2>Registros de ejemplo</h2>
+  <table style="margin: 0 auto; border-collapse: collapse; font-size: 1.1rem;">
+    <thead>
+      <tr>
+        <th style="padding: 8px 16px; border-bottom: 2px solid #051c2c;">Nombre ficticio</th>
+        <th style="padding: 8px 16px; border-bottom: 2px solid #051c2c;">Estado de ánimo</th>
+        <th style="padding: 8px 16px; border-bottom: 2px solid #051c2c;">Nota</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding: 8px 16px;">Ana Torres</td><td style="padding: 8px 16px;">4</td><td style="padding: 8px 16px;">Dormí bien y tengo energía para el día.</td></tr>
+      <tr><td style="padding: 8px 16px;">Carlos Mendoza</td><td style="padding: 8px 16px;">2</td><td style="padding: 8px 16px;">Mucho estrés por los exámenes.</td></tr>
+      <tr><td style="padding: 8px 16px;">Lucía Ramírez</td><td style="padding: 8px 16px;">5</td><td style="padding: 8px 16px;">Terminé mi proyecto y me siento orgullosa.</td></tr>
+      <tr><td style="padding: 8px 16px;">Diego Herrera</td><td style="padding: 8px 16px;">3</td><td style="padding: 8px 16px;">Un día normal, sin grandes novedades.</td></tr>
+      <tr><td style="padding: 8px 16px;">Sofía Vargas</td><td style="padding: 8px 16px;">1</td><td style="padding: 8px 16px;">Me siento agotada, necesito descansar.</td></tr>
+    </tbody>
+  </table>
+  <h2>Registra tu estado de ánimo</h2>
+  <form id="formulario-registro" style="max-width: 420px; margin: 0 auto; text-align: left;">
+    <p>
+      <label>Nombre ficticio<br>
+        <input type="text" id="nombre" required style="width: 100%; padding: 8px; font-size: 1rem;">
+      </label>
+    </p>
+    <fieldset style="border: none; padding: 0;">
+      <legend>Estado de ánimo (1 = muy mal, 5 = muy bien)</legend>
+      <label><input type="radio" name="estado" value="1" required> 1</label>
+      <label><input type="radio" name="estado" value="2"> 2</label>
+      <label><input type="radio" name="estado" value="3"> 3</label>
+      <label><input type="radio" name="estado" value="4"> 4</label>
+      <label><input type="radio" name="estado" value="5"> 5</label>
+    </fieldset>
+    <p>
+      <label>Nota (opcional)<br>
+        <textarea id="nota" rows="3" style="width: 100%; padding: 8px; font-size: 1rem;"></textarea>
+      </label>
+    </p>
+    <button type="submit" class="boton-comenzar">Enviar</button>
+    <p id="mensaje-form"></p>
+  </form>
+  <h2>Registros guardados</h2>
+  <button type="button" id="boton-recargar" class="boton-comenzar">Recargar lista</button>
+  <table style="margin: 16px auto 0; border-collapse: collapse; font-size: 1.1rem;">
+    <thead>
+      <tr>
+        <th style="padding: 8px 16px; border-bottom: 2px solid #051c2c;">Nombre ficticio</th>
+        <th style="padding: 8px 16px; border-bottom: 2px solid #051c2c;">Estado de ánimo</th>
+        <th style="padding: 8px 16px; border-bottom: 2px solid #051c2c;">Nota</th>
+        <th style="padding: 8px 16px; border-bottom: 2px solid #051c2c;">Fecha</th>
+      </tr>
+    </thead>
+    <tbody id="cuerpo-registros"></tbody>
+  </table>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     document.getElementById('fecha-actual').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const SUPABASE_URL = 'https://arzkkjkitkvikvegfhfj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_A0Msi3ER1oTV56JsKzdi8A_IYQgHuF1';
+    const clienteSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const formulario = document.getElementById('formulario-registro');
+    const mensaje = document.getElementById('mensaje-form');
+    const cuerpo = document.getElementById('cuerpo-registros');
+
+    async function cargarRegistros() {
+      const { data, error } = await clienteSupabase
+        .from('registros')
+        .select('nombre_ficticio, estado_animo, nota, created_at')
+        .order('created_at', { ascending: false });
+
+      cuerpo.replaceChildren();
+      if (error) {
+        mensaje.textContent = 'No se pudo cargar la lista: ' + error.message;
+        return;
+      }
+      for (const r of data) {
+        const fila = document.createElement('tr');
+        const valores = [r.nombre_ficticio, r.estado_animo, r.nota ?? '', new Date(r.created_at).toLocaleString('es-ES')];
+        for (const valor of valores) {
+          const celda = document.createElement('td');
+          celda.style.padding = '8px 16px';
+          celda.textContent = valor;
+          fila.appendChild(celda);
+        }
+        cuerpo.appendChild(fila);
+      }
+    }
+
+    formulario.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const estado = formulario.querySelector('input[name="estado"]:checked');
+      const { error } = await clienteSupabase.from('registros').insert({
+        nombre_ficticio: document.getElementById('nombre').value.trim(),
+        estado_animo: Number(estado.value),
+        nota: document.getElementById('nota').value.trim() || null
+      });
+      if (error) {
+        mensaje.textContent = 'No se pudo guardar: ' + error.message;
+        return;
+      }
+      mensaje.textContent = 'Registro guardado.';
+      formulario.reset();
+      cargarRegistros();
+    });
+
+    document.getElementById('boton-recargar').addEventListener('click', cargarRegistros);
+    cargarRegistros();
   </script>
 </body>
 </html>
